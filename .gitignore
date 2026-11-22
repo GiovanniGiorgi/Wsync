@@ -1,0 +1,6 @@
+# Everything wsync generates is state, not code:
+workingdir/
+server-*/
+push-*/
+local-*/
+.wsync-cycle
