@@ -44,9 +44,12 @@ Modificare file **solo dentro** `"$NODE/workingdir/"`. Durante il lavoro, `"$NOD
 ```bash
 "$NODE/wsync" diff      # deriva del server (auto-snapshot se c'è) + tuoi cambi
 ```
-- se il server è cambiato: leggere l'output, mostrare il "come" con `"$NODE/wsync" show <file>`, e concordare con l'utente il da farsi (i file del server sono comunque già fotografati)
 - poi `"$NODE/wsync" push` — i file sostituiti sul server vengono salvati automaticamente in `.snapshots/server-*-E/`
-- un conflitto reale (stesso file cambiato qua e là) NON si risolve da solo: mostrare le due versioni (`show`), proporre il merge, scrivere il risultato in workingdir, pushare solo dopo approvazione esplicita dell'utente
+- **Se il server è cambiato (deriva), valutare SEMPRE prima del push — mai pushare alla cieca:**
+  1. calcolare le due liste: file cambiati da lui (lista "server") e cambiati da noi (lista "tuoi")
+  2. **Nessuna sovrapposizione** (cartelle o file disgiunti): proporre esplicitamente all'utente l'**unione**: copiare i file della deriva dalla foto appena scattata (`cp -a .snapshots/server-<R₂>/<file> workingdir/<file>`) **prima** di pushare, così le scritture remote non vengono sovrascritte. Spiegare in una riga cosa si sta unendo e chiedere ok
+  3. **Sovrapposizione** (stesso file cambiato su due lati): conflitto reale → `wsync show <file>` (foto vs workingdir), mai risolvere da soli: mostrare le versioni, proporre il merge, scrivere il risultato solo dopo approvazione esplicita
+  4. in entrambi i casi, ricordare che il guardiano del push c'è e che le eventuali vittime finiscono in `.snapshots/server-*-E/`: nessuna scrittura remota è persa per sempre, ma l'unione *prima* del push è la strada pulita
 
 ## Comandi di supporto
 
