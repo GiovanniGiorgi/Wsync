@@ -124,7 +124,7 @@ pull)
   # 3) workingdir := foto
   mkdir -p "$WD"
   rsync -a --delete "$SNAP/$name/" "$WD/" "${EXCLUDES[@]}"
-  echo "$BASE/$name" > "$CYCLE"
+  echo "$SNAP/$name" > "$CYCLE"
   echo "✅ pull: workingdir = server  (riferimento ciclo: $name)"
   ;;
 
@@ -165,7 +165,7 @@ push)
   fi
   # traguardo: foto del mondo riconciliato, data = push
   name="push-$(TS)"; photo "$name" "$WD/"
-  echo "$BASE/$name" > "$CYCLE"
+  echo "$SNAP/$name" > "$CYCLE"
   echo "✅ push ok → 🏁 $name (vittime: $victims)"
   ;;
 
