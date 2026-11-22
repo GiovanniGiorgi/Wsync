@@ -50,6 +50,11 @@ Modificare file **solo dentro** `"$NODE/workingdir/"`. Durante il lavoro, `"$NOD
   2. **Nessuna sovrapposizione** (cartelle o file disgiunti): proporre esplicitamente all'utente l'**unione**: copiare i file della deriva dalla foto appena scattata (`cp -a .snapshots/server-<R₂>/<file> workingdir/<file>`) **prima** di pushare, così le scritture remote non vengono sovrascritte. Spiegare in una riga cosa si sta unendo e chiedere ok
   3. **Sovrapposizione** (stesso file cambiato su due lati): conflitto reale → `wsync show <file>` (foto vs workingdir), mai risolvere da soli: mostrare le versioni, proporre il merge, scrivere il risultato solo dopo approvazione esplicita
   4. in entrambi i casi, ricordare che il guardiano del push c'è e che le eventuali vittime finiscono in `.snapshots/server-*-E/`: nessuna scrittura remota è persa per sempre, ma l'unione *prima* del push è la strada pulita
+- **Principio risolutivo: la workingdir è la zona di decisione, il push ne è solo la formalità.** Tutto ciò che si vuole far vedere al server deve prima esistere in workingdir, costruito localmente:
+  - cartelle non toccate dal lavoro locale → tenere il remoto copiando **dalla foto R₂** (`cp -a .snapshots/server-<R₂>/<percorso> workingdir/`), mai dal vivo
+  - cartella del lavoro in corso → merge consapevole (`show` per confrontare, scrivere il risultato in workingdir)
+  - prima del push, `wsync status` deve mostrare **solo** ciò che si è deciso di spedire: è il manifesto del push
+  - il guardiano e le `-E` restano attivi sull'ultimo miglio: la risoluzione locale non li disarma
 
 ## Comandi di supporto
 
