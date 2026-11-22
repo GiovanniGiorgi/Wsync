@@ -100,3 +100,9 @@ Requirements: `bash`, `rsync` on **both** ends, `ssh` (with key auth; password a
 ## License
 
 MIT — do whatever, attribution appreciated.
+
+## Pi skill
+
+A ready-made [pi](https://github.com/badlogic/pi-mono) skill ships in [`skills/pi/SKILL.md`](skills/pi/SKILL.md): it teaches a pi session the pull→work→push cycle, the node discovery rule (current folder → auto-pull; up to two levels up → ask first; never deeper), and the hard rules (never touch `.snapshots/`, never push without an explicit word — though it may ask).
+
+Install: copy `skills/pi/` into `~/.pi/agent/skills/wsync/`.
