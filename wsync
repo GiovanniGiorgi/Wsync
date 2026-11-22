@@ -25,6 +25,7 @@ EXCLUDES=()                                     # esclusioni rsync, es: (--exclu
 
 BASE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 WD="$BASE/workingdir"
+SNAP="$BASE/.snapshots"                         # il nastro vive qui, al riparo da ls
 CYCLE="$BASE/.wsync-cycle"                      # puntatore alla foto R₁ del ciclo
 TS()   { date +%Y-%m-%d_%H%M%S; }
 RPATH(){ echo "${SSH_HOST:+$SSH_HOST:}$1"; }    # path rsync (host:path o path)
@@ -37,15 +38,15 @@ rsh() { if [[ -n "$SSH_HOST" ]]; then ssh -o BatchMode=yes -o ConnectTimeout=8 "
 # ordinamento cronologico VERO: per timestamp incorporato nel nome, non lessicale
 _byts() { local d t; for d in "$@"; do [[ -d "$d" ]] || continue
   t=$(basename "$d" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}'); echo "$t  $d"; done | sort; }
-latest()  { _byts "$BASE"/{server-*,push-*} 2>/dev/null | grep -vE ' \S+-E$' | tail -1 | sed 's/^[^ ]*  //' || true; }
-latest_p(){ _byts "$BASE"/push-* 2>/dev/null | tail -1 | sed 's/^[^ ]*  //' || true; }
+latest()  { _byts "$SNAP"/{server-*,push-*} 2>/dev/null | grep -vE ' \S+-E$' | tail -1 | sed 's/^[^ ]*  //' || true; }
+latest_p(){ _byts "$SNAP"/push-* 2>/dev/null | tail -1 | sed 's/^[^ ]*  //' || true; }
 cycle_ref(){ [[ -f "$CYCLE" ]] && cat "$CYCLE" || latest_p; }
 
 # differenza (metadati, dry-run) tra <src/> e <ref/> → liste di righe non vuote
 changes() { rsync -ain --delete "$1" "$2" "${EXCLUDES[@]}" 2>/dev/null | grep -E '^(<|>|\*deleting)' | grep -v '/$' || true; }
 
 photo() { # photo <nome> <sorgente-rsync>
-  local dest="$BASE/$1" src="$2" prev link=()
+  local dest="$SNAP/$1" src="$2" prev link=()
   prev="$(latest)"; [[ -n "$prev" ]] && link=(--link-dest="$prev")
   mkdir -p "$dest"
   rsync -a "${link[@]}" "${EXCLUDES[@]}" --delete "$src" "$dest/"
@@ -122,7 +123,7 @@ pull)
   fi
   # 3) workingdir := foto
   mkdir -p "$WD"
-  rsync -a --delete "$BASE/$name/" "$WD/" "${EXCLUDES[@]}"
+  rsync -a --delete "$SNAP/$name/" "$WD/" "${EXCLUDES[@]}"
   echo "$BASE/$name" > "$CYCLE"
   echo "✅ pull: workingdir = server  (riferimento ciclo: $name)"
   ;;
@@ -154,8 +155,8 @@ push)
   if rsh "test -d '$stage' -a -n \"\$(ls -A '$stage' 2>/dev/null)\""; then
     name="server-$(TS)-E"; prev="$(latest)"; link=()
     [[ -n "$prev" ]] && link=(--link-dest="$prev")
-    mkdir -p "$BASE/$name"
-    rsync -a "${link[@]}" "$(RPATH "$stage")/" "$BASE/$name/"   # qui sì host: (sorgente locale)
+    mkdir -p "$SNAP/$name"
+    rsync -a "${link[@]}" "$(RPATH "$stage")/" "$SNAP/$name/"   # qui sì host: (sorgente locale)
     victims=$(rsh "find '$stage' -type f | wc -l")
     rsh "rm -rf '$stage'"
     echo "🚨 $victims file del server sono stati sostituiti durante il push → recuperati in: $name"
@@ -172,7 +173,7 @@ show)
   # wsync show <file> [snapshot1 snapshot2]  — default: ultima foto vs workingdir
   [[ $# -lt 2 ]] && { echo "uso: wsync show <file> [snapA snapB]"; exit 1; }
   f="$2"
-  if [[ $# -ge 4 ]]; then a="$BASE/$2"; b="$BASE/$3"; else a="$(latest)"; b="$WD"; fi
+  if [[ $# -ge 4 ]]; then a="$SNAP/$2"; b="$SNAP/$3"; else a="$(latest)"; b="$WD"; fi
   fa="$a/$f"; fb="$b/$f"
   [[ -e "$fa" ]] || { echo "(non presente in ${a#$BASE/})"; fa=/dev/null; }
   [[ -e "$fb" ]] || { echo "(non presente in ${b#$BASE/})"; fb=/dev/null; }
@@ -180,9 +181,9 @@ show)
   ;;
 
 hist)
-  for d in "$BASE"/{server-*,push-*,local-*}; do
+  for d in "$SNAP"/{server-*,push-*,local-*}; do
     [[ -d "$d" ]] || continue
-    n="${d#$BASE/}"
+    n="${d#$SNAP/}"
     t=$(basename "$n" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}')
     case "$n" in
       push-*)     echo "$t  🏁 $n" ;;
@@ -195,7 +196,7 @@ hist)
 
 diff-snap)
   [[ $# -lt 3 ]] && { echo "uso: wsync diff-snap <snapA> <snapB>"; exit 1; }
-  a=$(ls -1d "$BASE"/*"$2"* | head -1); b=$(ls -1d "$BASE"/*"$3"* | head -1)
+  a=$(ls -1d "$SNAP"/*"$2"* | head -1); b=$(ls -1d "$SNAP"/*"$3"* | head -1)
   [[ -z "$a" || -z "$b" ]] && { echo "snapshot non trovati"; exit 1; }
   echo "diff: ${a#$BASE/} ↔ ${b#$BASE/}"
   diff -rq "$a" "$b" 2>/dev/null || true
@@ -203,7 +204,7 @@ diff-snap)
 
 keep)
   n="${2:-$KEEP}"
-  _byts "$BASE"/{server-*,push-*,local-*} 2>/dev/null | head -n -"$n" | sed 's/^[^ ]*  //' | { xargs -r rm -rf || true; }
+  _byts "$SNAP"/{server-*,push-*,local-*} 2>/dev/null | head -n -"$n" | sed 's/^[^ ]*  //' | { xargs -r rm -rf || true; }
   echo "🧹 conservati gli ultimi $n snapshot"
   ;;
 
@@ -214,7 +215,7 @@ repair)
   if ask "Li recupero come foto -E e pulisco il server?"; then
     for s in $leftovers; do
       name="server-$(TS)-E-recovered"
-      mkdir -p "$BASE/$name"; rsync -a "$(RPATH "$s")/" "$BASE/$name/"
+      mkdir -p "$SNAP/$name"; rsync -a "$(RPATH "$s")/" "$SNAP/$name/"
       rsh "rm -rf '$s'"; echo "🚨 recuperati in $name"
     done
   else

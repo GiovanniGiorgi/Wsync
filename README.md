@@ -19,10 +19,11 @@
 wsync-folder/
 ├── wsync                  ← the whole tool (one bash script, constants on top)
 ├── workingdir/            ← where you actually work
-├── server-<ts>/           ← 📷 photograph of the SERVER (taken at pull, and at diff when drift appears)
-├── server-<ts>-E/         ← 🚨 server files "victimized" during a push (recovered from rsync --backup)
-├── push-<ts>/             ← 🏁 the reconciled world, dated at push time
-└── local-<ts>/            ← 🛟 emergency save of un-pushed work
+└── .snapshots/            ← the ribbon, hidden from plain ls
+    ├── server-<ts>/       ← 📷 photograph of the SERVER (taken at pull, and at diff when drift appears)
+    ├── server-<ts>-E/     ← 🚨 server files "victimized" during a push (recovered from rsync --backup)
+    ├── push-<ts>/         ← 🏁 the reconciled world, dated at push time
+    └── local-<ts>/        ← 🛟 emergency save of un-pushed work
 ```
 
 All snapshots are **hardlink-based** (`rsync --link-dest`): identical files across snapshots share the same disk blocks, so dozens of snapshots of a text project cost almost nothing.
@@ -69,9 +70,22 @@ Non-interactive use: set `WSYNC_YES=1` to auto-confirm prompts.
 ## Install
 
 1. Copy the `wsync` script into its own folder (that folder becomes the sync node).
-2. Edit the constants at the top: `SSH_HOST` (an `~/.ssh/config` entry is strongly recommended; empty = local path mode) and `REMOTE_DIR`.
-3. `chmod +x wsync && ./wsync init`
-4. `./wsync pull` — first sync copies everything; afterwards all snapshots are incremental/hardlinked.
+2. Define the server cleanly in `~/.ssh/config` (recommended — stable names instead of IPs, and key auth):
+   ```
+   Host myserver
+       HostName 192.0.2.10
+       User myuser
+       IdentityFile ~/.ssh/id_ed25519
+       IdentitiesOnly yes
+   ```
+   (one-time key install on the server: `ssh-copy-id -i ~/.ssh/id_ed25519.pub myserver`)
+3. Edit the two constants at the top of the script:
+   ```bash
+   SSH_HOST="myserver"                    # the ~/.ssh/config entry (empty = local path mode)
+   REMOTE_DIR="/path/to/remote/project"   # must already exist on the server (init checks it)
+   ```
+4. `chmod +x wsync && ./wsync init`
+5. `./wsync pull` — first sync copies everything; afterwards all snapshots are incremental/hardlinked.
 
 Requirements: `bash`, `rsync` on **both** ends, `ssh` (with key auth; password auth works but you'll type it on every command). Nothing else — no server-side agent, no sftp, no database, works fine on minimal/atomic distros.
 
